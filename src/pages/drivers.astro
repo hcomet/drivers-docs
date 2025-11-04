@@ -1,0 +1,80 @@
+---
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+const allDrivers = await getCollection('docs');
+
+const uniqueCategories = [...new Set(allDrivers.map(driver => driver.data.category || 'Uncategorized'))];
+
+const categoryDescriptions = {
+  'General': 'General drivers for various purposes.',
+  'Network': 'Drivers for network connectivity.',
+  'Storage': 'Drivers for storage devices.',
+  'Uncategorized': 'Drivers that have not been assigned a specific category.',
+};
+---
+
+<StarlightPage frontmatter={{
+  title: 'Driver Categories',
+  template: 'splash'
+}}>
+  <div class="category-grid">
+    {uniqueCategories.map(category => (
+      <a href={`/drivers/${category.toLowerCase()}`} class="category-box">
+        <h2>{category}</h2>
+        <p>{categoryDescriptions[category] || 'No description available.'}</p>
+      </a>
+    ))}
+  </div>
+</StarlightPage>
+
+<style>
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .category-box {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    background-color: var(--sl-color-gray-6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--sl-shadow-sm);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .category-box:hover {
+    background-color: var(--sl-color-gray-5);
+    transform: translateY(-5px);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .category-box h2 {
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--sl-color-white);
+    font-size: 1.5rem;
+  }
+
+  .category-box p {
+    font-size: 1rem;
+    color: var(--sl-color-gray-2);
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+  }
+
+  .category-box::before {
+    content: '📦';
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+  }
+</style>

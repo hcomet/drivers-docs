@@ -18,10 +18,6 @@ export default defineConfig({
           label: 'Drivers Documentation',
           autogenerate: { directory: 'drivers' },
         },
-        {
-          label: 'Libraries Documentation',
-          autogenerate: { directory: 'libraries' },
-        },
       ],
     }),
   ],

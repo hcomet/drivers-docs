@@ -1,0 +1,88 @@
+---
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+export async function getStaticPaths() {
+  const allDrivers = await getCollection('docs');
+  const uniqueCategories = [...new Set(allDrivers.map(driver => driver.data.category || 'Uncategorized'))];
+
+  return uniqueCategories.map(category => ({
+    params: { category: category.toLowerCase() },
+    props: { categoryName: category },
+  }));
+}
+
+const { categoryName } = Astro.props;
+const allDrivers = await getCollection('docs');
+const driversInCategory = allDrivers.filter(driver => (driver.data.category || 'Uncategorized').toLowerCase() === categoryName.toLowerCase());
+
+console.log('Drivers in category:', categoryName, driversInCategory.map(d => d.id));
+---
+
+<StarlightPage frontmatter={{
+  title: `${categoryName} Drivers`,
+  template: 'splash'
+}}>
+  <div class="driver-grid">
+    {driversInCategory.map(driver => {
+      const driverPath = `/${driver.id.replace(/\.md$/, '')}`;
+      return (
+        <a href={driverPath} class="driver-box">
+          <h2>{driver.data.title}</h2>
+          <p>{driver.data.description || 'No description available.'}</p>
+        </a>
+      );
+    })}
+  </div>
+</StarlightPage>
+
+<style>
+  .driver-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .driver-box {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    background-color: var(--sl-color-gray-6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--sl-shadow-sm);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .driver-box:hover {
+    background-color: var(--sl-color-gray-5);
+    transform: translateY(-5px);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .driver-box h2 {
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--sl-color-white);
+    font-size: 1.5rem;
+  }
+
+  .driver-box p {
+    font-size: 1rem;
+    color: var(--sl-color-gray-2);
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+  }
+
+  .driver-box::before {
+    content: '⚙️';
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+  }
+</style>
