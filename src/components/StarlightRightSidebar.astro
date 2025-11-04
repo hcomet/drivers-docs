@@ -3,6 +3,7 @@ import yaml from 'js-yaml';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
+import TableOfContents from '@astrojs/starlight/components/TableOfContents.astro';
 
 const currentPath = Astro.url.pathname;
 let driverInfo = {};
@@ -34,7 +35,7 @@ if (currentPath.startsWith('/drivers/')) {
 ---
 
 <aside class="starlight-right-sidebar">
-  <h2 class="starlight-right-sidebar-title">Driver Information</h2>
+  <h2 class="starlight__on-this-page">Driver Information</h2>
   {Object.entries(driverInfo).length > 0 ? (
     <ul>
       {Object.entries(driverInfo).map(([key, value]) => (
@@ -44,6 +45,10 @@ if (currentPath.startsWith('/drivers/')) {
   ) : (
     <p>No driver information available.</p>
   )}
+
+  <hr class="starlight-sidebar-separator" />
+
+  <TableOfContents />
 </aside>
 
 <style>

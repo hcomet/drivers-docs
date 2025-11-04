@@ -1,6 +1,9 @@
 ---
 import { getCollection } from 'astro:content';
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import yaml from 'js-yaml';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 
 export async function getStaticPaths() {
   const allDrivers = await getCollection('docs');
@@ -16,35 +19,51 @@ const { categoryName } = Astro.props;
 const allDrivers = await getCollection('docs');
 const driversInCategory = allDrivers.filter(driver => (driver.data.category || 'Uncategorized').toLowerCase() === categoryName.toLowerCase());
 
-console.log('Drivers in category:', categoryName, driversInCategory.map(d => d.id));
+const uniqueManufacturers = new Set();
+for (const driver of driversInCategory) {
+  const driverId = driver.id;
+  const yamlFileName = `${driverId}.yaml`;
+  const yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+
+  if (existsSync(yamlPath)) {
+    try {
+      const fileContents = readFileSync(yamlPath, 'utf8');
+      const driverInfo = yaml.load(fileContents);
+      if (driverInfo && typeof driverInfo === 'object' && 'manufacturer' in driverInfo) {
+        uniqueManufacturers.add(driverInfo.manufacturer);
+      }
+    } catch (e) {
+      console.error(`Error loading manufacturer from YAML for ${driverId}:`, e);
+    }
+  }
+}
+
+const manufacturers = Array.from(uniqueManufacturers);
 ---
 
 <StarlightPage frontmatter={{
-  title: `${categoryName} Drivers`,
+  title: `${categoryName} Manufacturers`,
   template: 'splash'
 }}>
-  <div class="driver-grid">
-    {driversInCategory.map(driver => {
-      const driverPath = `/${driver.id.replace(/\.md$/, '')}`;
-      return (
-        <a href={driverPath} class="driver-box">
-          <h2>{driver.data.title}</h2>
-          <p>{driver.data.description || 'No description available.'}</p>
-        </a>
-      );
-    })}
+  <div class="manufacturer-grid">
+    {manufacturers.map(manufacturer => (
+      <a href={`/drivers/${categoryName.toLowerCase()}/${manufacturer.toLowerCase()}`} class="manufacturer-box">
+        <h2>{manufacturer}</h2>
+        <p>View drivers from {manufacturer}</p>
+      </a>
+    ))}
   </div>
 </StarlightPage>
 
 <style>
-  .driver-grid {
+  .manufacturer-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
     margin-top: 2rem;
   }
 
-  .driver-box {
+  .manufacturer-box {
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.75rem;
     padding: 1.5rem;
@@ -59,30 +78,23 @@ console.log('Drivers in category:', categoryName, driversInCategory.map(d => d.i
     transition: all 0.2s ease-in-out;
   }
 
-  .driver-box:hover {
+  .manufacturer-box:hover {
     background-color: var(--sl-color-gray-5);
     transform: translateY(-5px);
     box-shadow: var(--sl-shadow-md);
   }
 
-  .driver-box h2 {
+  .manufacturer-box h2 {
     margin-top: 0.5rem;
     margin-bottom: 0.75rem;
     color: var(--sl-color-white);
     font-size: 1.5rem;
   }
 
-  .driver-box p {
+  .manufacturer-box p {
     font-size: 1rem;
     color: var(--sl-color-gray-2);
     margin-bottom: 0.5rem;
     line-height: 1.5;
-  }
-
-  .driver-box::before {
-    content: '⚙️';
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
-    line-height: 1;
   }
 </style>

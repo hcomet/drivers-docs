@@ -1,0 +1,150 @@
+---
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import yaml from 'js-yaml';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
+
+export async function getStaticPaths() {
+  const allDrivers = await getCollection('docs');
+  const paths = [];
+
+  for (const driver of allDrivers) {
+    const category = driver.data.category || 'Uncategorized';
+    const driverId = driver.id; // e.g., drivers/general/driver-a
+
+    const yamlFileName = `${driverId}.yaml`;
+    const yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+
+    let manufacturer = 'Unknown';
+    if (existsSync(yamlPath)) {
+      try {
+        const fileContents = readFileSync(yamlPath, 'utf8');
+        const driverInfo = yaml.load(fileContents);
+        if (driverInfo && typeof driverInfo === 'object' && 'manufacturer' in driverInfo) {
+          manufacturer = driverInfo.manufacturer;
+        }
+      } catch (e) {
+        console.error(`Error loading manufacturer from YAML for ${driverId}:`, e);
+      }
+    }
+
+    paths.push({
+      params: {
+        category: category.toLowerCase(),
+        manufacturer: manufacturer.toLowerCase(),
+      },
+      props: {
+        categoryName: category,
+        manufacturerName: manufacturer,
+      },
+    });
+  }
+
+  // Filter out duplicate paths (e.g., same category and manufacturer)
+  const uniquePaths = Array.from(new Set(paths.map(p => `${p.params.category}-${p.params.manufacturer}`)))
+    .map(key => paths.find(p => `${p.params.category}-${p.params.manufacturer}` === key));
+
+  return uniquePaths;
+}
+
+const { category, manufacturer } = Astro.params;
+const { categoryName, manufacturerName } = Astro.props;
+
+const allDrivers = await getCollection('docs');
+const driversByManufacturer = [];
+
+for (const driver of allDrivers) {
+  const driverCategory = driver.data.category || 'Uncategorized';
+  const driverId = driver.id;
+
+  const yamlFileName = `${driverId}.yaml`;
+  const yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+
+  let driverManufacturer = 'Unknown';
+  if (existsSync(yamlPath)) {
+    try {
+      const fileContents = readFileSync(yamlPath, 'utf8');
+      const driverInfo = yaml.load(fileContents);
+      if (driverInfo && typeof driverInfo === 'object' && 'manufacturer' in driverInfo) {
+        driverManufacturer = driverInfo.manufacturer;
+      }
+    } catch (e) {
+      console.error(`Error loading manufacturer from YAML for ${driverId}:`, e);
+    }
+  }
+
+  if (driverCategory.toLowerCase() === category.toLowerCase() && driverManufacturer.toLowerCase() === manufacturer.toLowerCase()) {
+    driversByManufacturer.push(driver);
+  }
+}
+---
+
+<StarlightPage frontmatter={{
+  title: `${manufacturerName} Drivers in ${categoryName}`,
+  template: 'splash'
+}}>
+  <div class="driver-grid">
+    {driversByManufacturer.map(driver => {
+      const driverPath = `/${driver.id.replace(/\.md$/, '')}`;
+      return (
+        <a href={driverPath} class="driver-box">
+          <img src={driver.data.thumbnail || '/images/placeholder.png'} alt={`${driver.data.title} thumbnail`} class="driver-thumbnail" />
+          <h2>{driver.data.title}</h2>
+          <p>{driver.data.description || 'No description available.'}</p>
+        </a>
+      );
+    })}
+  </div>
+</StarlightPage>
+
+<style>
+  .driver-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .driver-box {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    background-color: var(--sl-color-gray-6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--sl-shadow-sm);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .driver-box:hover {
+    background-color: var(--sl-color-gray-5);
+    transform: translateY(-5px);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .driver-box h2 {
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--sl-color-white);
+    font-size: 1.5rem;
+  }
+
+  .driver-box p {
+    font-size: 1rem;
+    color: var(--sl-color-gray-2);
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+  }
+
+  .driver-thumbnail {
+    width: 64px; /* Adjust size as needed */
+    height: 64px; /* Adjust size as needed */
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+  }
+</style>
