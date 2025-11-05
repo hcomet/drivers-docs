@@ -9,6 +9,7 @@ export const collections = {
 			extend: z.object({
 				category: z.string().optional(),
 				description: z.string().optional(),
+				thumbnail: z.string().optional(),
 			}),
 		})(context),
 	}),

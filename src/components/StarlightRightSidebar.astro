@@ -2,11 +2,12 @@
 import yaml from 'js-yaml';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs'; // Added readdirSync
 import TableOfContents from '@astrojs/starlight/components/TableOfContents.astro';
 
 const currentPath = Astro.url.pathname;
 let driverInfo = {};
+let driverManufacturerDisplay = 'N/A'; // Variable to hold manufacturer for display
 let driverId = '';
 let yamlPath = '';
 
@@ -15,21 +16,56 @@ let yamlPath = '';
 if (currentPath.startsWith('/drivers/')) {
   // Remove '/drivers/' prefix and trailing slash
   driverId = currentPath.substring('/drivers/'.length).replace(/\/$/, '');
-  // Prepend 'drivers/' to match the content collection ID structure
-  driverId = `drivers/${driverId}`;
+  
+  const driverIdParts = driverId.split('/');
+  const driverCategorySlug = driverIdParts[0]; // e.g., 'mounts'
+  const driverSlug = driverIdParts[1]; // e.g., 'eqmod'
 
-  const yamlFileName = `${driverId}.yaml`;
-  // Construct the absolute path to the YAML file relative to the project root
-  // Assuming content/docs is at src/content/docs
-  yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+  // Find the actual cased directory name for the category
+  const baseContentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers`);
+  let actualCategoryDirName = driverCategorySlug;
 
-  if (existsSync(yamlPath)) {
-    try {
-      const fileContents = readFileSync(yamlPath, 'utf8');
-      driverInfo = yaml.load(fileContents);
-    } catch (e) {
-      console.error(`Error loading driver info YAML for ${driverId}:`, e);
+  if (existsSync(baseContentDirPath)) {
+    const categoryDirs = readdirSync(baseContentDirPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    const foundCategoryDir = categoryDirs.find(dir => dir.toLowerCase() === driverCategorySlug);
+    if (foundCategoryDir) {
+      actualCategoryDirName = foundCategoryDir;
+    } else {
+      // console.warn(`StarlightRightSidebar: Actual category directory not found for slug: ${driverCategorySlug}`); // Removed debug log
     }
+  }
+
+  const contentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers/${actualCategoryDirName}`);
+  
+  if (existsSync(contentDirPath)) {
+    try {
+      const filesInDir = readdirSync(contentDirPath);
+      const yamlFile = filesInDir.find(file => file.toLowerCase() === `${driverSlug}.yaml`);
+
+      if (yamlFile) {
+        yamlPath = path.resolve(contentDirPath, yamlFile);
+        const fileContents = readFileSync(yamlPath, 'utf8');
+        driverInfo = yaml.load(fileContents);
+
+        // Extract manufacturer for display, handling both casings
+        if (driverInfo && typeof driverInfo === 'object') {
+          if ('manufacturer' in driverInfo) {
+            driverManufacturerDisplay = driverInfo.manufacturer;
+          } else if ('Manufacturer' in driverInfo) {
+            driverManufacturerDisplay = driverInfo.Manufacturer;
+          }
+        }
+      } else {
+        // console.warn(`StarlightRightSidebar: YAML file not found for driver ${driverId} in ${contentDirPath}`); // Removed debug log
+      }
+    } catch (e) {
+      console.error(`StarlightRightSidebar: Error processing YAML for ${driverId}:`, e);
+    }
+  } else {
+    // console.warn(`StarlightRightSidebar: Content directory not found for driver ${driverId}: ${contentDirPath}`); // Removed debug log
   }
 }
 ---
@@ -38,7 +74,10 @@ if (currentPath.startsWith('/drivers/')) {
   <h2 class="starlight__on-this-page">Driver Information</h2>
   {Object.entries(driverInfo).length > 0 ? (
     <ul>
-      {Object.entries(driverInfo).map(([key, value]) => (
+      <li><strong>Manufacturer:</strong> {driverManufacturerDisplay}</li>
+      {Object.entries(driverInfo)
+        .filter(([key]) => key.toLowerCase() !== 'manufacturer') // Filter out both casings
+        .map(([key, value]) => (
         <li><strong>{key}:</strong> {value}</li>
       ))}
     </ul>

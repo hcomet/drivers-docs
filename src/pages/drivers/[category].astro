@@ -2,8 +2,9 @@
 import { getCollection } from 'astro:content';
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import yaml from 'js-yaml';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url'; // Added fileURLToPath
 
 export async function getStaticPaths() {
   const allDrivers = await getCollection('docs');
@@ -18,26 +19,61 @@ export async function getStaticPaths() {
 const { categoryName } = Astro.props;
 const allDrivers = await getCollection('docs');
 const driversInCategory = allDrivers.filter(driver => (driver.data.category || 'Uncategorized').toLowerCase() === categoryName.toLowerCase());
+// console.log(`Drivers in category "${categoryName}":`, driversInCategory.map(d => d.id)); // Removed debug log
 
 const uniqueManufacturers = new Set();
 for (const driver of driversInCategory) {
-  const driverId = driver.id;
-  const yamlFileName = `${driverId}.yaml`;
-  const yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+  const driverId = driver.id; // e.g., drivers/mounts/eqmod
+  const driverSlug = driverId.split('/').pop(); // e.g., eqmod
+  const driverCategorySlug = driverId.split('/')[1]; // e.g., mounts
 
-  if (existsSync(yamlPath)) {
+  // Find the actual cased directory name for the category
+  const baseContentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers`);
+  let actualCategoryDirName = driverCategorySlug;
+
+  if (existsSync(baseContentDirPath)) {
+    const categoryDirs = readdirSync(baseContentDirPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    const foundCategoryDir = categoryDirs.find(dir => dir.toLowerCase() === driverCategorySlug);
+    if (foundCategoryDir) {
+      actualCategoryDirName = foundCategoryDir;
+    } else {
+      // console.warn(`Actual category directory not found for slug: ${driverCategorySlug}`); // Removed debug log
+    }
+  }
+
+  const contentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers/${actualCategoryDirName}`);
+
+  if (existsSync(contentDirPath)) {
     try {
-      const fileContents = readFileSync(yamlPath, 'utf8');
-      const driverInfo = yaml.load(fileContents);
-      if (driverInfo && typeof driverInfo === 'object' && 'manufacturer' in driverInfo) {
-        uniqueManufacturers.add(driverInfo.manufacturer);
+      const filesInDir = readdirSync(contentDirPath);
+      const yamlFile = filesInDir.find(file => file.toLowerCase() === `${driverSlug}.yaml`);
+
+      if (yamlFile) {
+        const yamlPath = path.resolve(contentDirPath, yamlFile);
+        const fileContents = readFileSync(yamlPath, 'utf8');
+        const driverInfo = yaml.load(fileContents);
+        if (driverInfo && typeof driverInfo === 'object') {
+          if ('manufacturer' in driverInfo) {
+            uniqueManufacturers.add(driverInfo.manufacturer);
+          } else if ('Manufacturer' in driverInfo) {
+            uniqueManufacturers.add(driverInfo.Manufacturer);
+          }
+        }
+      } else {
+        // console.warn(`YAML file not found for driver ${driverId} in ${contentDirPath}`); // Removed debug log
       }
     } catch (e) {
-      console.error(`Error loading manufacturer from YAML for ${driverId}:`, e);
+      console.error(`Error processing YAML for ${driverId}:`, e);
     }
+  } else {
+    // console.warn(`Content directory not found for driver ${driverId}: ${contentDirPath}`); // Removed debug log
   }
 }
 
+// console.log(`Unique manufacturers for category "${categoryName}":`, Array.from(uniqueManufacturers)); // Removed debug log
 const manufacturers = Array.from(uniqueManufacturers);
 ---
 
@@ -46,12 +82,16 @@ const manufacturers = Array.from(uniqueManufacturers);
   template: 'splash'
 }}>
   <div class="manufacturer-grid">
-    {manufacturers.map(manufacturer => (
-      <a href={`/drivers/${categoryName.toLowerCase()}/${manufacturer.toLowerCase()}`} class="manufacturer-box">
-        <h2>{manufacturer}</h2>
-        <p>View drivers from {manufacturer}</p>
-      </a>
-    ))}
+    {manufacturers.map(manufacturer => {
+      const manufacturerLink = `/drivers/${categoryName.toLowerCase()}/${manufacturer.toLowerCase()}`;
+      return (
+        <a href={manufacturerLink} class="manufacturer-box">
+          <img src={`/images/manufacturers/${encodeURIComponent(manufacturer)}.png`} alt={`${manufacturer} logo`} class="manufacturer-logo" />
+          <h2>{manufacturer}</h2>
+          <p>View drivers from {manufacturer}</p>
+        </a>
+      );
+    })}
   </div>
 </StarlightPage>
 
@@ -96,5 +136,19 @@ const manufacturers = Array.from(uniqueManufacturers);
     color: var(--sl-color-gray-2);
     margin-bottom: 0.5rem;
     line-height: 1.5;
+  }
+
+  .manufacturer-logo {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+  }
+
+  .category-icon {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
   }
 </style>

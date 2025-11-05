@@ -2,8 +2,9 @@
 import { getCollection } from 'astro:content';
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import yaml from 'js-yaml';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs'; // Added readdirSync
 import path from 'node:path';
+import { fileURLToPath } from 'node:url'; // Added fileURLToPath
 
 export async function getStaticPaths() {
   const allDrivers = await getCollection('docs');
@@ -11,23 +12,57 @@ export async function getStaticPaths() {
 
   for (const driver of allDrivers) {
     const category = driver.data.category || 'Uncategorized';
-    const driverId = driver.id; // e.g., drivers/general/driver-a
+    const driverId = driver.id; // e.g., drivers/mounts/eqmod
+    const driverSlug = driverId.split('/').pop(); // e.g., eqmod
+    const driverCategorySlug = driverId.split('/')[1]; // e.g., mounts
 
-    const yamlFileName = `${driverId}.yaml`;
-    const yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+    // Find the actual cased directory name for the category
+    const baseContentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers`);
+    let actualCategoryDirName = driverCategorySlug;
 
-    let manufacturer = 'Unknown';
-    if (existsSync(yamlPath)) {
-      try {
-        const fileContents = readFileSync(yamlPath, 'utf8');
-        const driverInfo = yaml.load(fileContents);
-        if (driverInfo && typeof driverInfo === 'object' && 'manufacturer' in driverInfo) {
-          manufacturer = driverInfo.manufacturer;
-        }
-      } catch (e) {
-        console.error(`Error loading manufacturer from YAML for ${driverId}:`, e);
+    if (existsSync(baseContentDirPath)) {
+      const categoryDirs = readdirSync(baseContentDirPath, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+
+      const foundCategoryDir = categoryDirs.find(dir => dir.toLowerCase() === driverCategorySlug);
+      if (foundCategoryDir) {
+        actualCategoryDirName = foundCategoryDir;
+      } else {
+        console.warn(`Actual category directory not found for slug: ${driverCategorySlug}`);
       }
     }
+
+    const contentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers/${actualCategoryDirName}`);
+    let manufacturer = 'Unknown';
+
+    if (existsSync(contentDirPath)) {
+      try {
+        const filesInDir = readdirSync(contentDirPath);
+        const yamlFile = filesInDir.find(file => file.toLowerCase() === `${driverSlug}.yaml`);
+
+        if (yamlFile) {
+          const yamlPath = path.resolve(contentDirPath, yamlFile);
+          const fileContents = readFileSync(yamlPath, 'utf8');
+          const driverInfo = yaml.load(fileContents);
+        if (driverInfo && typeof driverInfo === 'object') {
+          if ('manufacturer' in driverInfo) {
+            manufacturer = driverInfo.manufacturer;
+          } else if ('Manufacturer' in driverInfo) {
+            manufacturer = driverInfo.Manufacturer;
+          }
+        }
+        } else {
+          console.warn(`YAML file not found for driver ${driverId} in ${contentDirPath}`);
+        }
+      } catch (e) {
+        console.error(`Error processing YAML for ${driverId}:`, e);
+      }
+    } else {
+      console.warn(`Content directory not found for driver ${driverId}: ${contentDirPath}`);
+    }
+
+    console.log(`Generating path for: Category=${category}, Manufacturer=${manufacturer}`); // Debug log
 
     paths.push({
       params: {
@@ -48,7 +83,9 @@ export async function getStaticPaths() {
   return uniquePaths;
 }
 
-const { category, manufacturer } = Astro.params;
+const { category: rawCategory, manufacturer: rawManufacturer } = Astro.params;
+const category = rawCategory.toLowerCase();
+const manufacturer = rawManufacturer.toLowerCase();
 const { categoryName, manufacturerName } = Astro.props;
 
 const allDrivers = await getCollection('docs');
@@ -56,22 +93,54 @@ const driversByManufacturer = [];
 
 for (const driver of allDrivers) {
   const driverCategory = driver.data.category || 'Uncategorized';
-  const driverId = driver.id;
+  const driverId = driver.id; // e.g., drivers/mounts/eqmod
+  const driverSlug = driverId.split('/').pop(); // e.g., eqmod
+  const driverCategorySlug = driverId.split('/')[1]; // e.g., mounts
 
-  const yamlFileName = `${driverId}.yaml`;
-  const yamlPath = path.resolve(process.cwd(), `src/content/docs/${yamlFileName}`);
+  // Find the actual cased directory name for the category
+  const baseContentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers`);
+  let actualCategoryDirName = driverCategorySlug;
 
+  if (existsSync(baseContentDirPath)) {
+    const categoryDirs = readdirSync(baseContentDirPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    const foundCategoryDir = categoryDirs.find(dir => dir.toLowerCase() === driverCategorySlug);
+    if (foundCategoryDir) {
+      actualCategoryDirName = foundCategoryDir;
+    } else {
+      console.warn(`Actual category directory not found for slug: ${driverCategorySlug}`);
+    }
+  }
+
+  const contentDirPath = path.resolve(process.cwd(), `src/content/docs/drivers/${actualCategoryDirName}`);
   let driverManufacturer = 'Unknown';
-  if (existsSync(yamlPath)) {
+
+  if (existsSync(contentDirPath)) {
     try {
-      const fileContents = readFileSync(yamlPath, 'utf8');
-      const driverInfo = yaml.load(fileContents);
-      if (driverInfo && typeof driverInfo === 'object' && 'manufacturer' in driverInfo) {
-        driverManufacturer = driverInfo.manufacturer;
+      const filesInDir = readdirSync(contentDirPath);
+      const yamlFile = filesInDir.find(file => file.toLowerCase() === `${driverSlug}.yaml`);
+
+      if (yamlFile) {
+        const yamlPath = path.resolve(contentDirPath, yamlFile);
+        const fileContents = readFileSync(yamlPath, 'utf8');
+        const driverInfo = yaml.load(fileContents);
+        if (driverInfo && typeof driverInfo === 'object') {
+          if ('manufacturer' in driverInfo) {
+            driverManufacturer = driverInfo.manufacturer;
+          } else if ('Manufacturer' in driverInfo) {
+            driverManufacturer = driverInfo.Manufacturer;
+          }
+        }
+      } else {
+        console.warn(`YAML file not found for driver ${driverId} in ${contentDirPath}`);
       }
     } catch (e) {
-      console.error(`Error loading manufacturer from YAML for ${driverId}:`, e);
+      console.error(`Error processing YAML for ${driverId}:`, e);
     }
+  } else {
+    console.warn(`Content directory not found for driver ${driverId}: ${contentDirPath}`);
   }
 
   if (driverCategory.toLowerCase() === category.toLowerCase() && driverManufacturer.toLowerCase() === manufacturer.toLowerCase()) {
@@ -89,7 +158,7 @@ for (const driver of allDrivers) {
       const driverPath = `/${driver.id.replace(/\.md$/, '')}`;
       return (
         <a href={driverPath} class="driver-box">
-          <img src={driver.data.thumbnail || '/images/placeholder.png'} alt={`${driver.data.title} thumbnail`} class="driver-thumbnail" />
+          <img src={driver.data.thumbnail || `/images/drivers/${driver.data.category}/${driver.data.title}.png`} alt={`${driver.data.title} thumbnail`} class="driver-thumbnail" />
           <h2>{driver.data.title}</h2>
           <p>{driver.data.description || 'No description available.'}</p>
         </a>
@@ -142,9 +211,16 @@ for (const driver of allDrivers) {
   }
 
   .driver-thumbnail {
-    width: 64px; /* Adjust size as needed */
-    height: 64px; /* Adjust size as needed */
+    width: 96px;
+    height: 96px;
     object-fit: contain;
     margin-bottom: 0.5rem;
+  }
+
+  .manufacturer-logo {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    margin-bottom: 1rem;
   }
 </style>

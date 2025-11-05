@@ -1,0 +1,8 @@
+Website: www.indlib.org
+DriverName: EQMod Mount
+Driver: Executableindi_eqmod_telescope
+Family: Telescopes
+Manufacturer: Sky Watcher
+Platforms: Linux, BSD, OSX
+Author: Jean-Luc Levaire
+Version: 1.0
