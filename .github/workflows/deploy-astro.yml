@@ -23,9 +23,12 @@ jobs:
       - name: Build Astro project
         run: npm run build
 
-      - name: Deploy to server
-        run: |
-          # Example for SCP:
-          # scp -r dist/* user@your-server:/var/www/html/drivers.indilib.org/
-          echo "Deployment to server needs to be configured manually here."
-          echo "The 'dist' directory contains the built Astro project."
+      - name: rsync deployments
+        uses: burnett01/rsync-deployments@7.1.0
+        with:
+          switches: -azv --delete
+          path: dist/
+          remote_path: public_html/
+          remote_host: ${{ secrets.REMOTE_PRIVATE_KEY }}
+          remote_user: ${{ secrets.REMOTE_PRIVATE_KEY }}
+          remote_key: ${{ secrets.REMOTE_PRIVATE_KEY }}
