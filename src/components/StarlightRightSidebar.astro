@@ -64,13 +64,13 @@ if (driverIdParts.length === 4) {
         }
       }
 
-      // Use the thumbnail from the content directory (co-located with markdown)
+      // Use the thumbnail from the public directory
       const thumbnailFilePath = path.resolve(
         contentDirPath,
         `${driverSlug}.webp`,
       );
       if (existsSync(thumbnailFilePath)) {
-        thumbnailPath = `/src/content/docs/${driverCategorySlug}/${driverManufacturerSlug}/${driverSlug}/${driverSlug}.webp`;
+        thumbnailPath = `/images/drivers/${driverManufacturerSlug}/${driverSlug}.webp`;
       }
     }
   } catch (e) {
