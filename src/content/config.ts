@@ -7,7 +7,7 @@ export const collections = {
 		loader: docsLoader(),
 		schema: (context) => docsSchema({
 			extend: z.object({
-				category: z.string().optional(),
+				categories: z.array(z.string()).optional(),
 				description: z.string().optional(),
 				thumbnail: z.string().optional(),
 			}),

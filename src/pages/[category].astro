@@ -1,53 +1,37 @@
 ---
 import { getCollection } from "astro:content";
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { CATEGORIES } from "../config/categories";
 import yaml from "js-yaml";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { slugify } from "../utils/slugify";
 
 export async function getStaticPaths() {
   const allDrivers = await getCollection("docs");
-  const categoryMap = new Map();
+  const activeCategorySet = new Set<string>();
 
-  // Extract unique categories with their display names
+  // Find all categories that have drivers
   for (const driver of allDrivers) {
-    const driverId = driver.id; // e.g., mounts/sky-watcher/eqmod
+    const driverId = driver.id;
     const driverParts = driverId.split("/");
 
     if (driverParts.length >= 3) {
-      const categorySlug = slugify(driverParts[0]);
-
-      // Get category display name from YAML
-      const yamlPath = path.resolve(
-        process.cwd(),
-        `src/content/docs/${driverId.replace(/\.md$/, ".yaml")}`,
-      );
-      if (existsSync(yamlPath)) {
-        try {
-          const fileContents = readFileSync(yamlPath, "utf8");
-          const driverInfo = yaml.load(fileContents) as Record<string, any>;
-          if (driverInfo?.category_name) {
-            categoryMap.set(categorySlug, driverInfo.category_name as string);
-          }
-        } catch (e) {
-          console.error(`Error reading YAML for ${driverId}:`, e);
-        }
-      }
-
-      // Fallback to driver.data.category or capitalize slug
-      if (!categoryMap.has(categorySlug)) {
-        const displayName =
-          driver.data.category ||
-          categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
-        categoryMap.set(categorySlug, displayName);
+      // Get categories from driver data
+      if (driver.data.categories && Array.isArray(driver.data.categories)) {
+        driver.data.categories.forEach((cat: string) => {
+          activeCategorySet.add(slugify(cat));
+        });
       }
     }
   }
 
-  return Array.from(categoryMap.entries()).map(([slug, name]) => ({
+  // Generate paths for all active categories
+  return Array.from(activeCategorySet).map((slug) => ({
     params: { category: slug },
-    props: { categoryName: name },
+    props: {
+      categoryName: CATEGORIES[slug as keyof typeof CATEGORIES] || slug,
+    },
   }));
 }
 
@@ -56,10 +40,21 @@ const category = slugify(rawCategory);
 const { categoryName } = Astro.props;
 
 const allDrivers = await getCollection("docs");
+
+// Filter drivers that belong to this category
 const driversInCategory = allDrivers.filter((driver) => {
   const driverId = driver.id;
   const driverParts = driverId.split("/");
-  return driverParts.length >= 3 && slugify(driverParts[0]) === category;
+
+  if (driverParts.length >= 3) {
+    // Check if driver's categories array includes this category
+    if (driver.data.categories && Array.isArray(driver.data.categories)) {
+      return driver.data.categories.some(
+        (cat: string) => slugify(cat) === category,
+      );
+    }
+  }
+  return false;
 });
 
 const manufacturerMap = new Map(); // Map<slug, displayName>
@@ -136,6 +131,7 @@ const manufacturers = Array.from(manufacturerMap.entries());
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1.5rem;
     margin-top: 2rem;
+    justify-content: center;
   }
 
   .manufacturer-box {

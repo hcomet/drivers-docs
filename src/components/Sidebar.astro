@@ -4,6 +4,7 @@ import yaml from "js-yaml";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { slugify } from "../utils/slugify";
+import { CATEGORIES } from "../config/categories";
 
 const currentPath = Astro.url.pathname;
 
@@ -35,7 +36,6 @@ for (const driver of allDrivers) {
     const driverParts = driverId.split("/");
 
     if (driverParts.length >= 3) {
-        const categorySlug = slugify(driverParts[0]);
         const manufacturerSlug = slugify(driverParts[1]);
         const driverSlug = slugify(driverParts[2].replace(/\.md$/, ""));
 
@@ -45,7 +45,6 @@ for (const driver of allDrivers) {
             `src/content/docs/${driverId.replace(/\.md$/, ".yaml")}`,
         );
 
-        let categoryName = categorySlug;
         let manufacturerName = manufacturerSlug;
         let driverName = driver.data.title || driverSlug;
 
@@ -56,9 +55,6 @@ for (const driver of allDrivers) {
                     string,
                     any
                 >;
-                if (driverInfo?.category_name) {
-                    categoryName = driverInfo.category_name as string;
-                }
                 if (driverInfo?.manufacturer_name) {
                     manufacturerName = driverInfo.manufacturer_name as string;
                 }
@@ -70,12 +66,7 @@ for (const driver of allDrivers) {
             }
         }
 
-        // Fallbacks
-        if (!categoryName || categoryName === categorySlug) {
-            categoryName =
-                driver.data.category ||
-                categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
-        }
+        // Fallback for manufacturer name
         if (!manufacturerName || manufacturerName === manufacturerSlug) {
             manufacturerName = manufacturerSlug
                 .split("-")
@@ -86,34 +77,50 @@ for (const driver of allDrivers) {
                 .join(" ");
         }
 
-        // Build the tree
-        if (!categoryMap.has(categorySlug)) {
-            categoryMap.set(categorySlug, {
-                slug: categorySlug,
-                name: categoryName,
-                manufacturers: [],
+        // Get categories from frontmatter
+        const driverCategories = driver.data.categories || [];
+
+        // The actual file location (first directory in path)
+        const actualCategorySlug = slugify(driverParts[0]);
+        const actualPath = `/${actualCategorySlug}/${manufacturerSlug}/${driverSlug}/${driverSlug}`;
+
+        // Add driver to each category it belongs to
+        for (const cat of driverCategories) {
+            const categorySlug = slugify(cat);
+            const categoryName =
+                CATEGORIES[categorySlug as keyof typeof CATEGORIES] ||
+                categorySlug;
+
+            // Build the tree
+            if (!categoryMap.has(categorySlug)) {
+                categoryMap.set(categorySlug, {
+                    slug: categorySlug,
+                    name: categoryName,
+                    manufacturers: [],
+                });
+            }
+
+            const category = categoryMap.get(categorySlug)!;
+            let manufacturer = category.manufacturers.find(
+                (m) => m.slug === manufacturerSlug,
+            );
+
+            if (!manufacturer) {
+                manufacturer = {
+                    slug: manufacturerSlug,
+                    name: manufacturerName,
+                    drivers: [],
+                };
+                category.manufacturers.push(manufacturer);
+            }
+
+            // Use the actual file path, not the category being displayed
+            manufacturer.drivers.push({
+                slug: driverSlug,
+                name: driverName,
+                path: actualPath,
             });
         }
-
-        const category = categoryMap.get(categorySlug)!;
-        let manufacturer = category.manufacturers.find(
-            (m) => m.slug === manufacturerSlug,
-        );
-
-        if (!manufacturer) {
-            manufacturer = {
-                slug: manufacturerSlug,
-                name: manufacturerName,
-                drivers: [],
-            };
-            category.manufacturers.push(manufacturer);
-        }
-
-        manufacturer.drivers.push({
-            slug: driverSlug,
-            name: driverName,
-            path: `/${categorySlug}/${manufacturerSlug}/${driverSlug}`,
-        });
     }
 }
 

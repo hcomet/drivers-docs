@@ -1,52 +1,32 @@
 ---
 import { getCollection } from "astro:content";
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
-import yaml from "js-yaml";
-import { readFileSync, existsSync } from "node:fs";
-import path from "node:path";
+import { CATEGORIES } from "../config/categories";
 import { slugify } from "../utils/slugify";
 
 const allDrivers = await getCollection("docs");
 
-// Build category map with display names
-const categoryMap = new Map();
+// Build set of categories that have drivers
+const activeCategorySet = new Set<string>();
 
 for (const driver of allDrivers) {
   const driverId = driver.id;
   const driverParts = driverId.split("/");
 
   if (driverParts.length >= 3) {
-    const categorySlug = slugify(driverParts[0]);
-
-    // Get category display name from YAML
-    const yamlPath = path.resolve(
-      process.cwd(),
-      `src/content/docs/${driverId.replace(/\.md$/, ".yaml")}`,
-    );
-
-    if (existsSync(yamlPath)) {
-      try {
-        const fileContents = readFileSync(yamlPath, "utf8");
-        const driverInfo = yaml.load(fileContents) as Record<string, any>;
-        if (driverInfo?.category_name) {
-          categoryMap.set(categorySlug, driverInfo.category_name as string);
-        }
-      } catch (e) {
-        console.error(`Error reading YAML for ${driverId}:`, e);
-      }
-    }
-
-    // Fallback to driver.data.category or capitalize slug
-    if (!categoryMap.has(categorySlug)) {
-      const displayName =
-        driver.data.category ||
-        categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
-      categoryMap.set(categorySlug, displayName);
+    // Get categories from driver data
+    if (driver.data.categories && Array.isArray(driver.data.categories)) {
+      driver.data.categories.forEach((cat: string) => {
+        activeCategorySet.add(slugify(cat));
+      });
     }
   }
 }
 
-const categories = Array.from(categoryMap.entries());
+// Filter categories to only those with drivers
+const categories = Object.entries(CATEGORIES)
+  .filter(([slug]) => activeCategorySet.has(slug))
+  .sort((a, b) => a[1].localeCompare(b[1]));
 ---
 
 <StarlightPage
@@ -77,6 +57,7 @@ const categories = Array.from(categoryMap.entries());
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1.5rem;
     margin-top: 2rem;
+    justify-content: center;
   }
 
   .category-box {

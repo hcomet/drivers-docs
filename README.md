@@ -8,29 +8,50 @@ Each driver entry consists of two files: a Markdown (`.md`) file for the main co
 
 ### File Structure
 
-All driver documentation resides within `src/content/docs/`, organized by category and manufacturer:
+All driver documentation resides within `src/content/docs/`, organized by category, manufacturer, and driver. Each driver has its own directory containing all documentation and images:
 
 ```
 src/content/docs/
-├── mounts/                      # Category (lowercase slug)
-│   ├── sky-watcher/            # Manufacturer (lowercase slug)
-│   │   ├── eqmod.md           # Driver documentation
-│   │   └── eqmod.yaml         # Driver metadata
-│   └── ikarus-technologies/
-│       ├── stellarmate-pro.md
-│       └── stellarmate-pro.yaml
-├── cameras/
-│   └── altair-astro/
-│       ├── altair.md
-│       └── altair.yaml
+├── mounts/                           # Category (lowercase slug)
+│   └── sky-watcher/                  # Manufacturer (lowercase slug)
+│       └── eqmod/                    # Driver (lowercase slug)
+│           ├── eqmod.yaml           # Driver metadata
+│           ├── eqmod.md             # Driver documentation
+│           ├── eqmod.webp           # Thumbnail image
+│           └── images/              # Additional screenshots (optional)
+│               ├── connection.webp
+│               └── features.webp
+├── dustcaps/
+│   └── deep-sky-dad/
+│       └── deep-sky-dad-fp1/
+│           ├── deep-sky-dad-fp1.yaml
+│           ├── deep-sky-dad-fp1.md
+│           ├── deep-sky-dad-fp1.webp
+│           └── images/              # All additional images
+│               └── operation.webp
 └── ...
 ```
 
 **Directory Naming Convention:**
-- Use **lowercase** with **hyphens** for directory names (e.g., `sky-watcher`, `ikarus-technologies`)
-- Category directories: `mounts`, `cameras`, `focusers`, etc.
-- Manufacturer directories: `sky-watcher`, `zwo`, `qhyccd`, etc.
-- Driver filenames: `eqmod.md`, `altair.md`, etc.
+- Use **lowercase** with **hyphens** for directory names (e.g., `sky-watcher`, `deep-sky-dad`, `ikarus-technologies`)
+- Category directories: `mounts`, `cameras`, `dustcaps`, `lightboxes`, etc.
+- Manufacturer directories: `sky-watcher`, `deep-sky-dad`, `zwo`, `qhyccd`, etc.
+- Driver directories: `eqmod`, `deep-sky-dad-fp1`, etc.
+- Driver filenames must match directory: `eqmod/eqmod.md`, `deep-sky-dad-fp1/deep-sky-dad-fp1.md`, etc.
+
+**Supported INDI Driver Categories:**
+- `adaptive-optics` - Adaptive Optics systems
+- `auxiliaries` - Auxiliary devices
+- `cameras` - CCD/CMOS cameras
+- `domes` - Observatory domes
+- `dustcaps` - Dust cap controllers
+- `filter-wheels` - Filter wheel controllers
+- `focusers` - Focuser controllers
+- `lightboxes` - Flat panel/light box devices
+- `mounts` - Telescope mounts
+- `power-controllers` - Power distribution and control
+- `rotators` - Camera rotators
+- `weather-stations` - Weather monitoring stations
 
 ### YAML Metadata File
 
@@ -39,13 +60,15 @@ The YAML file contains driver metadata with both human-friendly display names an
 ```yaml
 # Display Names (Human-Friendly - Required)
 driver_name: EQMod Mount
-category_name: Mounts
 manufacturer_name: Sky Watcher
+
+# Categories (Required - can be multiple)
+categories:
+  - mounts
 
 # Additional Metadata (Optional)
 website: www.indlib.org
 executable: indi_eqmod_telescope
-family: Telescopes
 platforms: Linux, BSD, OSX
 author: Jean-Luc Levaire
 version: 1.0
@@ -53,11 +76,24 @@ version: 1.0
 
 **Key Fields:**
 - `driver_name`: Human-friendly driver name (displayed on the website)
-- `category_name`: Human-friendly category name (e.g., "Mounts", "Cameras")
 - `manufacturer_name`: Human-friendly manufacturer name (e.g., "Sky Watcher", "Ikarus Technologies")
+- `categories`: Array of category slugs the driver belongs to (e.g., `["mounts"]`, `["dustcaps", "lightboxes"]`)
 - Additional fields: You can add any custom metadata that will be displayed in the driver information sidebar
 
-**Important:** The human-friendly names in the YAML file are what users will see on the website, while the directory structure uses SEO-friendly slugs for URLs.
+**Multi-Category Support:**
+Drivers can belong to multiple categories by specifying multiple category slugs in the `categories` array. For example, a device that functions as both a dust cap and a light box:
+
+```yaml
+driver_name: Deep Sky Dad FP1
+manufacturer_name: Deep Sky Dad
+categories:
+  - dustcaps
+  - lightboxes
+```
+
+This driver will appear in both the "Dust Caps" and "Light Boxes" categories in the sidebar navigation, with both entries linking to the same driver page.
+
+**Important:** The human-friendly names will be automatically looked up from the central category configuration, while the directory structure and category slugs use SEO-friendly formats for URLs.
 
 ### Markdown Documentation File
 
@@ -66,9 +102,9 @@ The Markdown file contains the main driver documentation:
 ```markdown
 ---
 title: EQMod Mount
-category: Mounts
+categories: ["mounts"]
 description: The EQMod driver for Sky Watcher mounts.
-thumbnail: /images/drivers/mounts/eqmod/eqmod.webp
+thumbnail: ./eqmod.webp
 ---
 
 # EQMod Driver
@@ -76,6 +112,8 @@ thumbnail: /images/drivers/mounts/eqmod/eqmod.webp
 This is the documentation for the EQMod driver...
 
 ## Features
+
+![Features](./images/features.webp)
 
 * Feature 1
 * Feature 2
@@ -87,63 +125,88 @@ Installation instructions...
 
 **Frontmatter Fields:**
 - `title`: The driver name (should match `driver_name` in YAML)
-- `category`: Category name (should match `category_name` in YAML)
+- `categories`: Array of category slugs matching those in the YAML file (e.g., `["mounts"]` or `["dustcaps", "lightboxes"]`)
 - `description`: Brief description for SEO and previews
-- `thumbnail`: (Optional) Path to the driver's main image
+- `thumbnail`: (Optional) Relative path to the driver's thumbnail image (e.g., `./eqmod.webp`)
+
+**Multi-Category Example:**
+```markdown
+---
+title: Deep Sky Dad FP1
+categories: ["dustcaps", "lightboxes"]
+description: A flat panel for both dust cap and light box functionality.
+thumbnail: ./deep-sky-dad-fp1.webp
+---
+```
+
+**Image References:**
+- Use **relative paths** for all images: `./image.webp` or `./images/image.webp`
+- Never use absolute paths like `/images/...`
 
 ## 2. Image Guidelines
 
-To maintain a consistent look and feel across the documentation, please adhere to the following image guidelines.
+All driver images are co-located with their documentation in the driver's directory. This makes it easy for contributors to submit everything in one place.
 
-### Driver Images
+### Driver Images Structure
 
 **Path Structure:**
 ```
-/public/images/drivers/<category-slug>/<manufacturer-slug>/<driver-slug>/<image-name>.webp
+src/content/docs/<category>/<manufacturer>/<driver>/
+├── <driver>.webp              # Thumbnail (required)
+└── images/                    # All additional images (optional)
+    ├── feature1.webp
+    ├── screenshot1.webp
+    └── diagram1.webp
 ```
 
 **Example:**
 ```
-/public/images/drivers/mounts/eqmod/eqmod.webp
-/public/images/drivers/cameras/altair-astro/altair.webp
+src/content/docs/mounts/sky-watcher/eqmod/
+├── eqmod.webp                 # Thumbnail
+└── images/                    # All screenshots and diagrams
+    ├── connection.webp
+    ├── features.webp
+    └── options.webp
 ```
 
 **Requirements:**
 - **Format**: Must be `.webp`
-- **Recommended Size**: 200x200 pixels for thumbnails
-- **Styling**: Images are automatically styled to fit within 200x200px while maintaining aspect ratio
+- **Thumbnail**: Named same as driver (e.g., `eqmod.webp`) at root of driver directory
+- **Additional Images**: All other images must be in the `images/` subdirectory
+- **Recommended Size**: 200x200 pixels for thumbnails, larger for screenshots
+- **References**: Use relative paths in markdown:
+  - Thumbnail: `./eqmod.webp`
+  - Other images: `./images/features.webp`
 
-### Manufacturer Logos
+### Shared Assets (Manufacturer Logos & Category Icons)
 
-**Path:**
+These are stored in `public/images/` as they are shared across multiple drivers:
+
+**Manufacturer Logos:**
 ```
-/public/images/manufacturers/<manufacturer-slug>.webp
+public/images/manufacturers/<manufacturer-slug>.webp
 ```
 
 **Examples:**
 ```
-/public/images/manufacturers/sky-watcher.webp
-/public/images/manufacturers/ikarus-technologies.webp
-/public/images/manufacturers/altair-astro.webp
+public/images/manufacturers/sky-watcher.webp
+public/images/manufacturers/deep-sky-dad.webp
+```
+
+**Category Icons:**
+```
+public/images/categories/<category-slug>.webp
+```
+
+**Examples:**
+```
+public/images/categories/mounts.webp
+public/images/categories/cameras.webp
 ```
 
 **Requirements:**
 - **Format**: Must be `.webp`
 - **Recommended Size**: 200x200 pixels
-- **Styling**: Logos are automatically styled to fit within 200x200px
-
-### Category Icons
-
-**Path:**
-```
-/public/images/categories/<category-slug>.webp
-```
-
-**Examples:**
-```
-/public/images/categories/mounts.webp
-/public/images/categories/cameras.webp
-```
 
 ## 3. URL Structure
 
@@ -151,7 +214,7 @@ The site automatically generates clean, SEO-friendly URLs based on the directory
 
 **Directory Structure:**
 ```
-src/content/docs/mounts/sky-watcher/eqmod.md
+src/content/docs/mounts/sky-watcher/eqmod/eqmod.md
 ```
 
 **Generated URL:**
@@ -193,55 +256,120 @@ These callouts are rendered with custom styling to draw attention to specific co
 
 ### Adding a New Driver
 
-1. **Create the directory structure:**
+1. **Create the driver directory:**
    ```bash
-   mkdir -p src/content/docs/<category-slug>/<manufacturer-slug>
+   mkdir -p src/content/docs/<category>/<manufacturer>/<driver>/images
    ```
    Example:
    ```bash
-   mkdir -p src/content/docs/mounts/sky-watcher
+   mkdir -p src/content/docs/mounts/sky-watcher/eqmod/images
    ```
 
 2. **Create the YAML metadata file:**
    ```bash
-   touch src/content/docs/mounts/sky-watcher/eqmod.yaml
+   touch src/content/docs/mounts/sky-watcher/eqmod/eqmod.yaml
    ```
-   Add your metadata with human-friendly names:
+   Add your metadata with human-friendly names and categories:
    ```yaml
    driver_name: EQMod Mount
-   category_name: Mounts
    manufacturer_name: Sky Watcher
-   website: www.indlib.org
+   categories:
+     - mounts
+   website: www.indilib.org
+   executable: indi_eqmod_telescope
    # ... other fields
    ```
 
 3. **Create the Markdown documentation file:**
    ```bash
-   touch src/content/docs/mounts/sky-watcher/eqmod.md
+   touch src/content/docs/mounts/sky-watcher/eqmod/eqmod.md
    ```
-   Add your documentation with frontmatter:
+   Add your documentation with frontmatter (categories must match YAML):
    ```markdown
    ---
    title: EQMod Mount
-   category: Mounts
+   categories: ["mounts"]
    description: Driver description here
-   thumbnail: /images/drivers/mounts/eqmod/eqmod.webp
+   thumbnail: ./eqmod.webp
    ---
+   
+   ## Features
+   ![Features](./images/features.webp)
    
    Your documentation content...
    ```
 
-4. **Add images:**
-   - Driver images: `public/images/drivers/mounts/sky-watcher/`
-   - Manufacturer logo: `public/images/manufacturers/sky-watcher.webp`
+4. **Add images to the driver directory:**
+   - Thumbnail: `src/content/docs/mounts/sky-watcher/eqmod/eqmod.webp`
+   - Screenshots: `src/content/docs/mounts/sky-watcher/eqmod/images/features.webp`
+   - If manufacturer logo doesn't exist: `public/images/manufacturers/sky-watcher.webp`
 
-5. **Test locally:**
+5. **Convert images to WebP format:**
+   ```bash
+   # Using cwebp (recommended)
+   cwebp -q 80 input.png -o output.webp
+   
+   # Using ImageMagick
+   convert input.png -quality 80 output.webp
+   ```
+
+6. **Test locally:**
    ```bash
    npm run dev
    ```
    Visit `http://localhost:4321/mounts/sky-watcher/eqmod`
 
-6. **Submit a pull request** with your changes.
+7. **Submit a pull request** with your changes.
+
+### Adding a Multi-Category Driver
+
+For drivers that belong to multiple categories (e.g., a device that functions as both a dust cap and light box):
+
+1. **Create the driver directory in the PRIMARY category:**
+   ```bash
+   mkdir -p src/content/docs/dustcaps/deep-sky-dad/deep-sky-dad-fp1/images
+   ```
+
+2. **Create the YAML metadata file with multiple categories:**
+   ```bash
+   touch src/content/docs/dustcaps/deep-sky-dad/deep-sky-dad-fp1/deep-sky-dad-fp1.yaml
+   ```
+   ```yaml
+   driver_name: Deep Sky Dad FP1
+   manufacturer_name: Deep Sky Dad
+   categories:
+     - dustcaps
+     - lightboxes
+   website: www.deepskydad.com
+   executable: indi_deepskydad_fp1
+   # ... other fields
+   ```
+
+3. **Create the Markdown file with matching categories:**
+   ```bash
+   touch src/content/docs/dustcaps/deep-sky-dad/deep-sky-dad-fp1/deep-sky-dad-fp1.md
+   ```
+   ```markdown
+   ---
+   title: Deep Sky Dad FP1
+   categories: ["dustcaps", "lightboxes"]
+   description: A flat panel that functions as both dust cap and light box
+   thumbnail: ./deep-sky-dad-fp1.webp
+   ---
+   
+   # Deep Sky Dad FP1
+   
+   This device serves dual purposes...
+   ```
+
+4. **Add images:**
+   - Thumbnail: `src/content/docs/dustcaps/deep-sky-dad/deep-sky-dad-fp1/deep-sky-dad-fp1.webp`
+   - Screenshots: `src/content/docs/dustcaps/deep-sky-dad/deep-sky-dad-fp1/images/operation.webp`
+
+5. **Result:**
+   - The driver appears in both "Dust Caps" and "Light Boxes" sidebar categories
+   - Both entries link to: `/dustcaps/deep-sky-dad/deep-sky-dad-fp1`
+   - Metadata displays: "Categories: Dust Caps, Light Boxes"
 
 ## 6. Important Notes
 

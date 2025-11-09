@@ -1,6 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { CATEGORIES } from "../../config/categories";
 import yaml from "js-yaml";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -11,29 +12,24 @@ export async function getStaticPaths() {
   const pathMap = new Map();
 
   for (const driver of allDrivers) {
-    const driverId = driver.id; // e.g., mounts/sky-watcher/eqmod
+    const driverId = driver.id;
     const driverParts = driverId.split("/");
 
     if (driverParts.length >= 3) {
-      const categorySlug = slugify(driverParts[0]);
       const manufacturerSlug = slugify(driverParts[1]);
 
-      // Get display names from YAML
+      // Get manufacturer name from YAML
       const yamlPath = path.resolve(
         process.cwd(),
         `src/content/docs/${driverId.replace(/\.md$/, ".yaml")}`,
       );
 
-      let categoryName = categorySlug;
       let manufacturerName = manufacturerSlug;
 
       if (existsSync(yamlPath)) {
         try {
           const fileContents = readFileSync(yamlPath, "utf8");
           const driverInfo = yaml.load(fileContents) as Record<string, any>;
-          if (driverInfo?.category_name) {
-            categoryName = driverInfo.category_name as string;
-          }
           if (driverInfo?.manufacturer_name) {
             manufacturerName = driverInfo.manufacturer_name as string;
           }
@@ -42,24 +38,20 @@ export async function getStaticPaths() {
         }
       }
 
-      // Use fallbacks if no YAML data
-      if (!categoryName || categoryName === categorySlug) {
-        categoryName =
-          driver.data.category ||
-          categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
-      }
-      if (!manufacturerName || manufacturerName === manufacturerSlug) {
-        manufacturerName = manufacturerSlug
-          .split("-")
-          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ");
-      }
+      // Generate a path for each category this driver belongs to
+      if (driver.data.categories && Array.isArray(driver.data.categories)) {
+        driver.data.categories.forEach((cat: string) => {
+          const categorySlug = slugify(cat);
+          const categoryName =
+            CATEGORIES[categorySlug as keyof typeof CATEGORIES] || categorySlug;
 
-      const key = `${categorySlug}-${manufacturerSlug}`;
-      pathMap.set(key, {
-        params: { category: categorySlug, manufacturer: manufacturerSlug },
-        props: { categoryName, manufacturerName },
-      });
+          const key = `${categorySlug}-${manufacturerSlug}`;
+          pathMap.set(key, {
+            params: { category: categorySlug, manufacturer: manufacturerSlug },
+            props: { categoryName, manufacturerName },
+          });
+        });
+      }
     }
   }
 
@@ -72,14 +64,21 @@ const manufacturer = slugify(rawManufacturer);
 const { categoryName, manufacturerName } = Astro.props;
 
 const allDrivers = await getCollection("docs");
+
+// Filter drivers that belong to this category AND manufacturer
 const driversByManufacturer = allDrivers.filter((driver) => {
   const driverId = driver.id;
   const driverParts = driverId.split("/");
-  return (
-    driverParts.length >= 3 &&
-    slugify(driverParts[0]) === category &&
-    slugify(driverParts[1]) === manufacturer
-  );
+
+  if (driverParts.length >= 3 && slugify(driverParts[1]) === manufacturer) {
+    // Check if driver's categories array includes this category
+    if (driver.data.categories && Array.isArray(driver.data.categories)) {
+      return driver.data.categories.some(
+        (cat: string) => slugify(cat) === category,
+      );
+    }
+  }
+  return false;
 });
 ---
 
@@ -93,13 +92,19 @@ const driversByManufacturer = allDrivers.filter((driver) => {
     {
       driversByManufacturer.map((driver) => {
         const driverPath = `/${slugify(driver.id.replace(/\.md$/, ""))}`;
+
+        // Construct path to co-located thumbnail
+        // driver.id is like "rotators/moon-lite/night-crawler-rotator-and-focuser/night-crawler-rotator-and-focuser.md"
+        const driverParts = driver.id.split("/");
+        const actualCategorySlug = driverParts[0]; // Get actual file location category
+        const manufacturerSlug = driverParts[1]; // Get "moon-lite"
+        const driverSlug = driverParts[2]; // Get "night-crawler-rotator-and-focuser"
+        const thumbnailPath = `/src/content/docs/${actualCategorySlug}/${manufacturerSlug}/${driverSlug}/${driverSlug}.webp`;
+
         return (
           <a href={driverPath} class="driver-box">
             <img
-              src={
-                driver.data.thumbnail ||
-                `/images/drivers/${slugify(driver.data.category || "uncategorized")}/${slugify(driver.data.title || "")}.webp`
-              }
+              src={thumbnailPath}
               alt={`${driver.data.title} thumbnail`}
               class="driver-thumbnail"
             />

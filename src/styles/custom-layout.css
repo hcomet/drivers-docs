@@ -21,11 +21,15 @@ main.main-pane {
 /* Adjust the content width */
 .content-panel {
     max-width: none !important;
+    margin: 0 auto;
 }
 
 /* Make markdown content wider */
 .sl-markdown-content {
     max-width: 90rem !important;
+    margin: 0 auto;
+    display: block;
+    /* Ensure it behaves as a block element for margin: auto to work */
 }
 
 /* Fix right sidebar width - override Starlight's width: 100% */

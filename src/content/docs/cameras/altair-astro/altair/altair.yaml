@@ -1,0 +1,11 @@
+# Display Names (Human-Friendly)
+driver_name: Altair
+categories: ["cameras"]
+manufacturer_name: Altair Astro
+
+# Additional Metadata
+website: www.altairastro.com
+executable: indi_altair_ccd
+platforms: Linux, MacOS
+author: Jasem Mutlaq
+version: 1.1

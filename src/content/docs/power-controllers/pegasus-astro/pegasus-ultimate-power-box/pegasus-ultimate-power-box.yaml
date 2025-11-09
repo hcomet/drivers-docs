@@ -1,0 +1,11 @@
+# Display Names (Human-Friendly)
+driver_name: Pegasus Ultimate Powerbox v2
+categories: ["power-controllers"]
+manufacturer_name: Pegasus Astro
+
+# Additional Metadata
+website: pegasusastro.com
+executable: indi_pegasus_upb
+platforms: Linux, BSD, MacOS
+author: Jasem Mutlaq
+version: 1.0

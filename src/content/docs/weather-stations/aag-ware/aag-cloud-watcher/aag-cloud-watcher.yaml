@@ -1,0 +1,12 @@
+# Display Names (Human-Friendly)
+driver_name: AAG Cloud Watcher
+categories: ["weather-stations"]
+manufacturer_name: AAG Ware
+
+# Additional Metadata
+website: lunatico.es/ourproducts/aag-cloud-watcher.html
+executable: indi_aagcloudwatcher
+platforms: GNU/Linux
+tags: cloud, temperature, rain, wind, anemometer
+author: Zerjillo (S. Alonso)
+version: 1.01

@@ -5,107 +5,112 @@ import { existsSync, readFileSync } from "node:fs";
 import { Image } from "astro:assets";
 import TableOfContents from "@astrojs/starlight/components/TableOfContents.astro";
 import { slugify } from "../utils/slugify";
+import { CATEGORIES } from "../config/categories";
 
-const currentPath = Astro.url.pathname;
 let driverInfo: Record<string, any> = {};
 let driverManufacturerDisplay = "N/A";
-let driverId = "";
-let yamlPath = "";
-let driverImagePath = "";
-let driverImageExists = false;
 let driverWebsite = "";
+let thumbnailPath: any = "";
 
 // Extract driverId from the current URL path
 // Example: /mounts/sky-watcher/eqmod/ -> mounts/sky-watcher/eqmod
+const currentPath = Astro.url.pathname;
+let driverId = "";
 if (currentPath.startsWith("/")) {
-  // Remove leading slash and trailing slash
   driverId = currentPath.substring(1).replace(/\/$/, "");
+}
 
-  const driverIdParts = driverId.split("/");
+const driverIdParts = driverId.split("/");
 
-  // Only process if we have a full driver path (category/manufacturer/driver)
-  if (driverIdParts.length === 3) {
-    const driverCategorySlug = slugify(driverIdParts[0]);
-    const driverManufacturerSlug = slugify(driverIdParts[1]);
-    const driverSlug = slugify(driverIdParts[2]);
+// New 4-part URL structure: /category/manufacturer/driver/driver
+// Example: /mounts/sky-watcher/eqmod/eqmod
+if (driverIdParts.length === 4) {
+  const driverCategorySlug = slugify(driverIdParts[0]);
+  const driverManufacturerSlug = slugify(driverIdParts[1]);
+  const driverSlug = slugify(driverIdParts[2]);
 
-    const contentDirPath = path.resolve(
-      process.cwd(),
-      `src/content/docs/${driverCategorySlug}/${driverManufacturerSlug}`,
-    );
+  const contentDirPath = path.resolve(
+    process.cwd(),
+    `src/content/docs/${driverCategorySlug}/${driverManufacturerSlug}/${driverSlug}`,
+  );
 
+  // The try-catch block was malformed, ensuring it's correct now.
+  try {
     if (existsSync(contentDirPath)) {
-      try {
-        const yamlFileName = `${driverSlug}.yaml`;
-        const potentialYamlPath = path.resolve(contentDirPath, yamlFileName);
+      const yamlFileName = `${driverSlug}.yaml`;
+      const potentialYamlPath = path.resolve(contentDirPath, yamlFileName);
 
-        if (existsSync(potentialYamlPath)) {
-          yamlPath = potentialYamlPath;
-          const fileContents = readFileSync(yamlPath, "utf8");
-          driverInfo = yaml.load(fileContents) as Record<string, any>;
+      if (existsSync(potentialYamlPath)) {
+        const fileContents = readFileSync(potentialYamlPath, "utf8");
+        driverInfo = yaml.load(fileContents) as Record<string, any>;
 
-          // Extract manufacturer for display
-          if (driverInfo && typeof driverInfo === "object") {
-            if (driverInfo.manufacturer_name) {
-              driverManufacturerDisplay =
-                driverInfo.manufacturer_name as string;
-            } else if (driverInfo.manufacturer) {
-              driverManufacturerDisplay = driverInfo.manufacturer as string;
-            }
-            if (driverInfo.website) {
-              driverWebsite = driverInfo.website as string;
-              // Ensure the website URL is absolute
-              if (
-                !driverWebsite.startsWith("http://") &&
-                !driverWebsite.startsWith("https://")
-              ) {
-                driverWebsite = `https://${driverWebsite}`;
-              }
-            }
+        // Extract manufacturer for display
+        if (driverInfo && typeof driverInfo === "object") {
+          if (driverInfo.manufacturer_name) {
+            driverManufacturerDisplay = driverInfo.manufacturer_name as string;
+          } else if (driverInfo.manufacturer) {
+            driverManufacturerDisplay = driverInfo.manufacturer as string;
           }
-
-          // Construct image path and check existence
-          const imageFileName = `${driverSlug}.webp`;
-          const imageDirPath = path.resolve(
-            process.cwd(),
-            `public/images/${driverCategorySlug}/${driverManufacturerSlug}`,
-          );
-          const potentialImagePath = path.resolve(imageDirPath, imageFileName);
-
-          if (existsSync(potentialImagePath)) {
-            driverImagePath = `/images/${driverCategorySlug}/${driverManufacturerSlug}/${imageFileName}`;
-            driverImageExists = true;
+          if (driverInfo.website) {
+            driverWebsite = driverInfo.website as string;
+            // Ensure the website URL is absolute
+            if (
+              !driverWebsite.startsWith("http://") &&
+              !driverWebsite.startsWith("https://")
+            ) {
+              driverWebsite = `https://${driverWebsite}`;
+            }
           }
         }
-      } catch (e) {
-        console.error(
-          `StarlightRightSidebar: Error processing YAML for ${driverId}:`,
-          e,
-        );
+      }
+
+      // Use the thumbnail from the content directory (co-located with markdown)
+      const thumbnailFilePath = path.resolve(
+        contentDirPath,
+        `${driverSlug}.webp`,
+      );
+      if (existsSync(thumbnailFilePath)) {
+        thumbnailPath = `/src/content/docs/${driverCategorySlug}/${driverManufacturerSlug}/${driverSlug}/${driverSlug}.webp`;
       }
     }
+  } catch (e) {
+    console.error(
+      `StarlightRightSidebar: Error processing YAML for ${driverId}:`,
+      e,
+    );
   }
 }
 ---
 
 <aside class="starlight-right-sidebar">
   {
-    driverImageExists && driverWebsite && (
-      <a
-        href={driverWebsite}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="driver-thumbnail-link"
-      >
-        <Image
-          src={driverImagePath}
-          alt={`${driverInfo.driver_name || "Driver"} Thumbnail`}
-          width={320}
-          height={180}
-          class="driver-thumbnail"
-        />
-      </a>
-    )
+    thumbnailPath &&
+      (driverWebsite ? (
+        <a
+          href={driverWebsite}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="driver-thumbnail-link"
+        >
+          <Image
+            src={thumbnailPath}
+            alt="Driver Thumbnail"
+            width={320}
+            height={180}
+            class="driver-thumbnail"
+          />
+        </a>
+      ) : (
+        <div class="driver-thumbnail-link">
+          <Image
+            src={thumbnailPath}
+            alt="Driver Thumbnail"
+            width={320}
+            height={180}
+            class="driver-thumbnail"
+          />
+        </div>
+      ))
   }
 
   {
@@ -124,17 +129,31 @@ if (currentPath.startsWith("/")) {
               key.toLowerCase() !== "driver_name" &&
               key.toLowerCase() !== "website",
           )
-          .map(([key, value]) => (
-            <div class="info-row">
-              <div class="info-label">
-                {key
-                  .split("_")
-                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(" ")}
+          .map(([key, value]) => {
+            let displayValue = String(value);
+
+            // Convert category slugs to human-readable names
+            if (key.toLowerCase() === "categories" && Array.isArray(value)) {
+              displayValue = value
+                .map((cat: string) => {
+                  const catSlug = slugify(cat);
+                  return CATEGORIES[catSlug as keyof typeof CATEGORIES] || cat;
+                })
+                .join(", ");
+            }
+
+            return (
+              <div class="info-row">
+                <div class="info-label">
+                  {key
+                    .split("_")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}
+                </div>
+                <div class="info-value">{displayValue}</div>
               </div>
-              <div class="info-value">{String(value)}</div>
-            </div>
-          ))}
+            );
+          })}
       </div>
     ) : (
       <p class="no-info">No driver information available.</p>
